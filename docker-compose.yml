@@ -3,9 +3,9 @@ services:
     build: .
     container_name: qis-note-notifier
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      - QIS_USERNAME=${QIS_USERNAME}
-      - QIS_PASSWORD=${QIS_PASSWORD}
       - TZ=Europe/Berlin
     volumes:
       - ./data:/data

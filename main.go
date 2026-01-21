@@ -26,6 +26,7 @@ var (
 	username   = os.Getenv("QIS_USERNAME")
 	password   = os.Getenv("QIS_PASSWORD")
 	webhookURL = os.Getenv("WEBHOOK_URL")
+	debug 	= os.Getenv("DEBUG") == "true"
 )
 
 func main() {
@@ -114,10 +115,13 @@ func checkGrades() {
 
 	// 5. Parsen
 	doc, _ = goquery.NewDocumentFromReader(resp.Body)
-	content, _ := doc.Find("table").Html()
+	content, _ := doc.Find("#wrapper > div.divcontent > div.content > form > table:nth-child(4)").Html()
 
 	// Debug: Inhalt anzeigen
-	// fmt.Println(content)
+	if debug {
+		fmt.Println("Notentabelle HTML:")
+		fmt.Println(content)
+	}
 
 	// 6. Hash check
 	hash := md5.Sum([]byte(content))
