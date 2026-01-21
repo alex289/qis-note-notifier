@@ -1,38 +1,26 @@
 # Build stage
 FROM golang:1.25-alpine AS builder
 
+# Install tzdata for timezone support
+RUN apk --no-cache add tzdata
+
 WORKDIR /app
 
-# Copy go mod files
 COPY go.mod go.sum* ./
-
-# Download dependencies
 RUN go mod download
 
-# Copy source code
 COPY . .
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o qis-note-notifier .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o qis-note-notifier .
 
 # Final stage
-FROM alpine:latest
+FROM scratch
 
-RUN apk --no-cache add ca-certificates tzdata
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
-WORKDIR /app
+COPY --from=builder /app/qis-note-notifier /qis-note-notifier
 
-# Copy the binary from builder
-COPY --from=builder /app/qis-note-notifier .
+USER 1000
 
-# Create directory for data
-RUN mkdir -p /data
-
-# Run as non-root user
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser && \
-    chown -R appuser:appuser /app /data
-
-USER appuser
-
-CMD ["./qis-note-notifier"]
+ENTRYPOINT ["/qis-note-notifier"]

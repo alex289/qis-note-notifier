@@ -26,7 +26,7 @@ var (
 	username   = os.Getenv("QIS_USERNAME")
 	password   = os.Getenv("QIS_PASSWORD")
 	webhookURL = os.Getenv("WEBHOOK_URL")
-	debug 	= os.Getenv("DEBUG") == "true"
+	debug      = os.Getenv("DEBUG") == "true"
 )
 
 func main() {
@@ -132,9 +132,11 @@ func checkGrades() {
 		fmt.Println("🎉 Änderung erkannt!", time.Now().Format("15:04:05"))
 		os.WriteFile(hashFile, []byte(newHash), 0644)
 
-		err := shoutrrr.Send(webhookURL, "Neue Noten verfügbar!")
-		if err != nil {
-			fmt.Println("Error sending notification:", err)
+		if webhookURL != "" {
+			err := shoutrrr.Send(webhookURL, "Neue Noten verfügbar!")
+			if err != nil {
+				fmt.Println("Error sending notification:", err)
+			}
 		}
 	} else {
 		fmt.Println("Keine Änderung -", time.Now().Format("15:04:05"))
