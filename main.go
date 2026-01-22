@@ -126,11 +126,18 @@ func checkGrades() {
 	// 6. Hash check
 	hash := md5.Sum([]byte(content))
 	newHash := hex.EncodeToString(hash[:])
-	oldHash, _ := os.ReadFile(hashFile)
+	oldHash, err := os.ReadFile(hashFile)
+	if err != nil {
+		fmt.Println("Error reading hash file:", err)
+		return
+	}
 
 	if newHash != strings.TrimSpace(string(oldHash)) {
 		fmt.Println("🎉 Änderung erkannt!", time.Now().Format("15:04:05"))
-		os.WriteFile(hashFile, []byte(newHash), 0644)
+		if err := os.WriteFile(hashFile, []byte(newHash), 0644); err != nil {
+			fmt.Println("Error writing hash file:", err)
+			return
+		}
 
 		if webhookURL != "" {
 			err := shoutrrr.Send(webhookURL, "Neue Noten verfügbar!")
