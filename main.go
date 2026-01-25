@@ -117,15 +117,29 @@ func checkGrades() {
 	doc, _ = goquery.NewDocumentFromReader(resp.Body)
 	content, _ := doc.Find("#wrapper > div.divcontent > div.content > form > table:not([summary])").Html()
 
-	// Remove all whitespace or newlines
+	if (strings.TrimSpace(content) == "") {
+		fmt.Println("Keine Notentabelle gefunden – möglicherweise keine Noten verfügbar")
+		return
+	}
+
+	// Remove dynamic content that changes between requests
+	// Remove href attributes (with or without spaces)
+	re := regexp.MustCompile(`\s*href="[^"]*"`)
+	content = re.ReplaceAllString(content, "")
+
+	// Remove any asi tokens that might appear elsewhere
+	asiRe := regexp.MustCompile(`asi=[A-Za-z0-9._-]+`)
+	content = asiRe.ReplaceAllString(content, "asi=REMOVED")
+
+	// Remove amp; encoding variations
+	content = strings.ReplaceAll(content, "&amp;", "&")
+
+	// Remove all whitespace and newlines for consistent comparison
 	content = strings.ReplaceAll(content, "\n", "")
 	content = strings.ReplaceAll(content, "\r", "")
 	content = strings.ReplaceAll(content, "\t", "")
+	content = strings.ReplaceAll(content, " ", "")
 	content = strings.TrimSpace(content)
-
-	// Remove any href attributes
-	re := regexp.MustCompile(` href="[^"]*"`)
-	content = re.ReplaceAllString(content, "")
 
 	// Debug: Inhalt anzeigen
 	if debug {
@@ -136,20 +150,41 @@ func checkGrades() {
 	// 6. Hash check
 	hash := md5.Sum([]byte(content))
 	newHash := hex.EncodeToString(hash[:])
-	oldHash, err := os.ReadFile(hashFile)
-	if err != nil {
-		fmt.Println("Error reading hash file:", err)
-		return
+
+	if debug {
+		fmt.Println("New hash:", newHash)
 	}
 
-	if newHash != strings.TrimSpace(string(oldHash)) {
-		fmt.Println("🎉 Änderung erkannt!", time.Now().Format("15:04:05"))
+	oldHashBytes, err := os.ReadFile(hashFile)
+	oldHash := ""
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Println("Hash file doesn't exist - this is the first run")
+		} else {
+			fmt.Println("Error reading hash file:", err)
+		}
+		// Continue with empty oldHash for first run
+	} else {
+		oldHash = strings.TrimSpace(string(oldHashBytes))
+		if debug {
+			fmt.Println("Old hash:", oldHash)
+		}
+	}
+
+	if newHash != oldHash {
+		if oldHash == "" {
+			fmt.Println("First run - saving initial hash", time.Now().Format("15:04:05"))
+		} else {
+			fmt.Println("🎉 Änderung erkannt!", time.Now().Format("15:04:05"))
+		}
+
 		if err := os.WriteFile(hashFile, []byte(newHash), 0644); err != nil {
 			fmt.Println("Error writing hash file:", err)
 			return
 		}
 
-		if webhookURL != "" {
+		// Only send notification if this is not the first run
+		if webhookURL != "" && oldHash != "" {
 			err := shoutrrr.Send(webhookURL, "Neue Noten verfügbar!")
 			if err != nil {
 				fmt.Println("Error sending notification:", err)
