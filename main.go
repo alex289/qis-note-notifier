@@ -115,7 +115,17 @@ func checkGrades() {
 
 	// 5. Parsen
 	doc, _ = goquery.NewDocumentFromReader(resp.Body)
-	content, _ := doc.Find("#wrapper > div.divcontent > div.content > form > table:nth-child(4)").Html()
+	content, _ := doc.Find("#wrapper > div.divcontent > div.content > form > table:not([summary])").Html()
+
+	// Remove all whitespace or newlines
+	content = strings.ReplaceAll(content, "\n", "")
+	content = strings.ReplaceAll(content, "\r", "")
+	content = strings.ReplaceAll(content, "\t", "")
+	content = strings.TrimSpace(content)
+
+	// Remove any href attributes
+	re := regexp.MustCompile(` href="[^"]*"`)
+	content = re.ReplaceAllString(content, "")
 
 	// Debug: Inhalt anzeigen
 	if debug {
